@@ -2,5 +2,12 @@
 name = "bevy_movie_play_experimental"
 version = "0.0.1"
 edition = "2024"
+description = "Play a movie in Bevy (currently experimental)"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"
