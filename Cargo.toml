@@ -4,6 +4,8 @@ version = "0.0.1"
 edition = "2024"
 description = "Play a movie in Bevy (currently experimental)"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/unclepomedev/bevy_movie_play_experimental"
+readme = "README.md"
 
 [dependencies]
 bevy = { version = "0.20", default-features = false, features = ["bevy_asset", "bevy_render"] }
