@@ -93,6 +93,9 @@ fn show_frames(
 ) {
     for (entity, mut movie) in &mut movies {
         let wanted = movie.frame_at_position();
+        if movie.failed.is_some_and(|failed| failed != wanted) {
+            movie.failed = None;
+        }
         if movie.shown == Some(wanted) || movie.failed == Some(wanted) {
             continue;
         }
@@ -204,6 +207,18 @@ mod tests {
         assert_eq!(pixel(&app, entity), 1);
         let reads = reads.lock().unwrap();
         assert_eq!(reads.iter().filter(|i| **i == 2).count(), 1);
+    }
+
+    #[test]
+    fn a_frame_that_failed_is_tried_again_after_the_position_has_left_it() {
+        let (mut app, entity, reads) = app();
+        seek(&mut app, entity, 1.0);
+        seek(&mut app, entity, 2.0);
+        // Back on the frame that is shown: nothing is read, but the failure is forgotten.
+        seek(&mut app, entity, 1.0);
+        seek(&mut app, entity, 2.0);
+        let reads = reads.lock().unwrap();
+        assert_eq!(reads.iter().filter(|i| **i == 2).count(), 2);
     }
 
     #[test]

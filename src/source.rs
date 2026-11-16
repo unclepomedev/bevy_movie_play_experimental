@@ -7,12 +7,15 @@ use bevy::math::UVec2;
 use image::{image_dimensions, open as img_open};
 use std::{
     fs::read_dir,
+    io::Error as IoError,
     path::{Path, PathBuf},
 };
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum SourceError {
+    #[error("the frame rate must be finite and above zero, not {0}")]
+    FrameRate(f32),
     #[error("{0}: no frames (jpg, jpeg, png, webp) were found")]
     Empty(PathBuf),
     #[error("{path}: {message}")]
@@ -58,24 +61,31 @@ pub struct ImageSequence {
 }
 
 impl ImageSequence {
-    /// Opens the folder. The size of the first image is the size of the movie.
+    /// Opens the folder. The frames are the images in it in the order of their names, so the names must be
+    /// zero-padded (`0001.jpg`, `0002.jpg`, ...). The size of the first image is the size of the movie.
     pub fn open(dir: impl AsRef<Path>, frame_rate: f32) -> Result<Self, SourceError> {
+        if !(frame_rate.is_finite() && frame_rate > 0.0) {
+            return Err(SourceError::FrameRate(frame_rate));
+        }
         let dir = dir.as_ref();
-        let read_dir = read_dir(dir).map_err(|e| SourceError::Read {
+        let read_error = |e: IoError| SourceError::Read {
             path: dir.into(),
             message: e.to_string(),
-        })?;
-        let mut files: Vec<PathBuf> = read_dir
-            .filter_map(|entry| Some(entry.ok()?.path()))
-            .filter(|path| {
-                path.extension().and_then(|e| e.to_str()).is_some_and(|e| {
-                    matches!(
-                        e.to_ascii_lowercase().as_str(),
-                        "jpg" | "jpeg" | "png" | "webp"
-                    )
-                })
-            })
-            .collect();
+        };
+        let read_dir = read_dir(dir).map_err(read_error)?;
+        let mut files = Vec::new();
+        for entry in read_dir {
+            let path = entry.map_err(read_error)?.path();
+            let is_frame = path.extension().and_then(|e| e.to_str()).is_some_and(|e| {
+                matches!(
+                    e.to_ascii_lowercase().as_str(),
+                    "jpg" | "jpeg" | "png" | "webp"
+                )
+            });
+            if is_frame {
+                files.push(path);
+            }
+        }
         files.sort();
         let first = files
             .first()
@@ -150,6 +160,17 @@ mod tests {
         assert_eq!(info.frame_at(1.0), 9);
         assert_eq!(info.frame_at(99.0), 9);
         assert_eq!(info.duration(), 1.0);
+    }
+
+    #[test]
+    fn a_frame_rate_that_is_not_finite_and_above_zero_is_an_error() {
+        let dir = tempdir().unwrap();
+        for rate in [0.0, -1.0, f32::NAN, f32::INFINITY] {
+            assert!(matches!(
+                ImageSequence::open(dir.path(), rate),
+                Err(SourceError::FrameRate(_))
+            ));
+        }
     }
 
     #[test]

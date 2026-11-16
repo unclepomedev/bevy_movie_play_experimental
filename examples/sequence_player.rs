@@ -67,7 +67,6 @@ fn advance(time: Res<Time>, mut movies: Query<(&mut Movie, &Playing)>) {
 
 fn keys(input: Res<ButtonInput<KeyCode>>, mut movies: Query<(&mut Movie, &mut Playing)>) {
     for (mut movie, mut playing) in &mut movies {
-        let frame = 1.0 / movie.info().frame_rate;
         let at = movie.position();
         if input.just_pressed(KeyCode::Space) {
             playing.0 = !playing.0;
@@ -80,17 +79,28 @@ fn keys(input: Res<ButtonInput<KeyCode>>, mut movies: Query<(&mut Movie, &mut Pl
         }
         if input.just_pressed(KeyCode::Comma) {
             playing.0 = false;
-            movie.seek((at - frame).max(0.0));
+            step(&mut movie, -1);
         }
         if input.just_pressed(KeyCode::Period) {
             playing.0 = false;
-            movie.seek(at + frame);
+            step(&mut movie, 1);
         }
         if input.just_pressed(KeyCode::KeyR) {
             movie.seek(0.0);
             playing.0 = true;
         }
     }
+}
+
+/// Moves to the middle of the frame before or after the one that is shown. Stepping by time would stay on the
+/// last frame when the position is at the end of the movie.
+fn step(movie: &mut Movie, by: i32) {
+    let info = movie.info();
+    let frame = movie
+        .frame_at_position()
+        .saturating_add_signed(by as isize)
+        .min(info.frames - 1);
+    movie.seek((frame as f32 + 0.5) / info.frame_rate);
 }
 
 /// 60 frames of 320x180: a bar goes across, and a column on the left grows with the frame number.

@@ -1,5 +1,5 @@
 //! Plays a movie in Bevy: the frame for a position goes into an `Image`, which anything can show.
-//! The movie does not run by itself. Whoever owns the time says where the movie is [`Movie::seek`], and the frame for that moment is shown.
+//! The movie does not run by itself. Whoever owns the time says where the movie is by [`Movie::seek`], and the frame for that moment is shown.
 //!
 //! ```no_run
 //! # use bevy::prelude::*;
