@@ -68,7 +68,7 @@ impl Movie {
     /// Moves to `seconds`, kept between the start and the end of the movie.
     pub fn seek(&mut self, seconds: f32) {
         if seconds.is_finite() {
-            self.position = seconds.clamp(0.0, self.info.duration());
+            self.position = seconds.min(self.info.duration()).max(0.0);
         }
     }
 
@@ -150,6 +150,25 @@ mod tests {
         }
     }
 
+    #[derive(Resource, Default)]
+    struct Errors(usize);
+
+    /// A source that says nonsense about itself, as a backend that has not found out yet might.
+    struct Unsure;
+    impl FrameSource for Unsure {
+        fn info(&self) -> MovieInfo {
+            MovieInfo {
+                size: UVec2::new(1, 1),
+                frames: 4,
+                frame_rate: -1.0,
+            }
+        }
+        fn read(&mut self, _: usize, out: &mut Vec<u8>) -> Result<(), SourceError> {
+            *out = vec![0; 4];
+            Ok(())
+        }
+    }
+
     fn app() -> (App, Entity, Arc<Mutex<Vec<usize>>>) {
         let reads = Arc::new(Mutex::new(Vec::new()));
         let mut app = App::new();
@@ -199,15 +218,14 @@ mod tests {
     #[test]
     fn a_frame_that_cannot_be_read_keeps_the_last_picture_and_is_not_tried_again() {
         let (mut app, entity, reads) = app();
+        app.init_resource::<Errors>();
         app.world_mut()
             .entity_mut(entity)
-            .observe(|e: On<MovieError>, mut seen: Local<usize>| {
-                *seen += 1;
-                assert_eq!(*seen, 1, "reported once: {}", e.message);
-            });
+            .observe(|_: On<MovieError>, mut errors: ResMut<Errors>| errors.0 += 1);
         seek(&mut app, entity, 1.0);
         seek(&mut app, entity, 2.0);
         seek(&mut app, entity, 2.5);
+        assert_eq!(app.world().resource::<Errors>().0, 1);
         assert_eq!(pixel(&app, entity), 1);
         let reads = reads.lock().unwrap();
         assert_eq!(reads.iter().filter(|i| **i == 2).count(), 1);
@@ -234,6 +252,14 @@ mod tests {
         let movie = app.world().get::<Movie>(entity).unwrap();
         assert_eq!(movie.position(), movie.info().duration());
         assert_eq!(movie.frame_at_position(), 3);
+    }
+
+    #[test]
+    fn seeking_a_movie_with_a_nonsense_length_does_not_panic() {
+        let mut images = Assets::<Image>::default();
+        let mut movie = Movie::new(Unsure, &mut images);
+        movie.seek(3.0);
+        assert_eq!(movie.position(), 0.0);
     }
 
     #[test]
