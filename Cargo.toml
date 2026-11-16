@@ -6,6 +6,7 @@ description = "Play a movie in Bevy (currently experimental)"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
+bevy = { version = "0.20", default-features = false, features = ["bevy_asset", "bevy_render"] }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
 thiserror = "2"
 
