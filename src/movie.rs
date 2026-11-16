@@ -6,9 +6,10 @@ use bevy::{
 };
 use std::mem::take;
 
-/// Sent when a frame could not be read.
-#[derive(Event, Debug, Clone)]
+/// Sent to the movie when a frame could not be read.
+#[derive(EntityEvent, Debug, Clone)]
 pub struct MovieError {
+    #[event_target]
     pub movie: Entity,
     pub message: String,
 }
@@ -64,9 +65,10 @@ impl Movie {
         self.position
     }
 
+    /// Moves to `seconds`, kept between the start and the end of the movie.
     pub fn seek(&mut self, seconds: f32) {
         if seconds.is_finite() {
-            self.position = seconds;
+            self.position = seconds.clamp(0.0, self.info.duration());
         }
     }
 
@@ -197,10 +199,12 @@ mod tests {
     #[test]
     fn a_frame_that_cannot_be_read_keeps_the_last_picture_and_is_not_tried_again() {
         let (mut app, entity, reads) = app();
-        app.add_observer(|e: On<MovieError>, mut seen: Local<usize>| {
-            *seen += 1;
-            assert_eq!(*seen, 1, "reported once: {}", e.message);
-        });
+        app.world_mut()
+            .entity_mut(entity)
+            .observe(|e: On<MovieError>, mut seen: Local<usize>| {
+                *seen += 1;
+                assert_eq!(*seen, 1, "reported once: {}", e.message);
+            });
         seek(&mut app, entity, 1.0);
         seek(&mut app, entity, 2.0);
         seek(&mut app, entity, 2.5);
@@ -219,6 +223,17 @@ mod tests {
         seek(&mut app, entity, 2.0);
         let reads = reads.lock().unwrap();
         assert_eq!(reads.iter().filter(|i| **i == 2).count(), 2);
+    }
+
+    #[test]
+    fn the_position_stays_between_the_start_and_the_end() {
+        let (mut app, entity, _) = app();
+        seek(&mut app, entity, -5.0);
+        assert_eq!(app.world().get::<Movie>(entity).unwrap().position(), 0.0);
+        seek(&mut app, entity, 99.0);
+        let movie = app.world().get::<Movie>(entity).unwrap();
+        assert_eq!(movie.position(), movie.info().duration());
+        assert_eq!(movie.frame_at_position(), 3);
     }
 
     #[test]

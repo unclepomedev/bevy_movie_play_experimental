@@ -58,9 +58,8 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
 fn advance(time: Res<Time>, mut movies: Query<(&mut Movie, &Playing)>) {
     for (mut movie, playing) in &mut movies {
         if playing.0 {
-            let end = movie.info().duration();
             let at = movie.position() + time.delta_secs();
-            movie.seek(at.min(end));
+            movie.seek(at);
         }
     }
 }
@@ -72,7 +71,7 @@ fn keys(input: Res<ButtonInput<KeyCode>>, mut movies: Query<(&mut Movie, &mut Pl
             playing.0 = !playing.0;
         }
         if input.just_pressed(KeyCode::ArrowLeft) {
-            movie.seek((at - 1.0).max(0.0));
+            movie.seek(at - 1.0);
         }
         if input.just_pressed(KeyCode::ArrowRight) {
             movie.seek(at + 1.0);
