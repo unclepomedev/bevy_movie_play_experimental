@@ -145,7 +145,9 @@ fn h264_track(reader: &Mp4Reader<BufReader<File>>) -> Result<&Mp4Track, String> 
 
 fn movie_info(track: &Mp4Track) -> Result<MovieInfo, String> {
     let frames = track.sample_count();
-    let frame_rate = track.frame_rate() as f32;
+    // `Mp4Track::frame_rate` divides whole numbers, which turns 29.97 into 29.
+    let seconds = track.trak.mdia.mdhd.duration as f64 / f64::from(track.timescale());
+    let frame_rate = (f64::from(frames) / seconds) as f32;
     if frames == 0 || !(frame_rate.is_finite() && frame_rate > 0.0) {
         return Err(format!("{frames} frames at {frame_rate} frames a second"));
     }
@@ -220,6 +222,7 @@ mod tests {
     use super::*;
 
     const RAMP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/ramp.mp4");
+    const RAMP_29_97: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/ramp_29_97.mp4");
     const RAMP_WITH_B_FRAMES: &str =
         concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/ramp_bframes.mp4");
 
@@ -245,6 +248,17 @@ mod tests {
         assert_eq!(info.size, UVec2::new(64, 64));
         assert_eq!(info.frames, 30);
         assert_eq!(info.frame_rate, 10.0);
+    }
+
+    #[test]
+    fn a_frame_rate_with_a_fraction_is_kept() {
+        let info = Mp4Source::open(RAMP_29_97).unwrap().info();
+        assert_eq!(info.frames, 30);
+        assert!(
+            (info.frame_rate - 30000.0 / 1001.0).abs() < 0.001,
+            "{}",
+            info.frame_rate
+        );
     }
 
     #[test]
