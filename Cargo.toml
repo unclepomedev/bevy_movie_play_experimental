@@ -7,7 +7,13 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/unclepomedev/bevy_movie_play_experimental"
 readme = "README.md"
 
+[features]
+# Reads H.264 in MP4 files. Off by default: it needs the decoder to be built from C++ source.
+mp4 = ["dep:mp4", "dep:openh264"]
+
 [dependencies]
+mp4 = { version = "0.14", optional = true }
+openh264 = { version = "0.9", optional = true }
 bevy = { version = "0.20", default-features = false, features = ["bevy_asset", "bevy_render"] }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
 thiserror = "2"
