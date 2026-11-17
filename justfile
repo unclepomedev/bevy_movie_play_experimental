@@ -30,3 +30,5 @@ c: check
 # ffmpeg -f lavfi -i testsrc=duration=15:size=1280x720:rate=30 -pix_fmt yuv420p -c:v libx264 -y sandbox/test.mp4
 # ffmpeg -i sandbox/test.mp4 -vf fps=10,scale=640:360 sandbox/frames/%04d.jpg
 # cargo run --example sequence_player -- sandbox/frames/ 10
+# ffmpeg -i sandbox/test.mp4 -c:v libx264 -pix_fmt yuv420p -bf 0 -g 10 -an sandbox/movie.mp4
+# cargo run --example sequence_player --features mp4 -- sandbox/test.mp4

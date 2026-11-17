@@ -12,7 +12,11 @@
 //! ```
 
 mod movie;
+#[cfg(feature = "mp4")]
+mod mp4;
 mod source;
 
 pub use movie::{Movie, MovieError, MoviePlugin};
+#[cfg(feature = "mp4")]
+pub use mp4::Mp4Source;
 pub use source::{FrameSource, ImageSequence, MovieInfo, SourceError};

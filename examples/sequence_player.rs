@@ -1,6 +1,8 @@
-//! Plays a folder of frames. Without an argument it makes a short test movie in the temp folder.
+//! Plays a folder of frames, or an MP4 file with the feature `mp4`. Without an argument it makes a short test
+//! movie in the temp folder.
 //!
 //! Execution: cargo run --example sequence_player -- sandbox/frames/ [frame_rate]
+//!            cargo run --example sequence_player --features mp4 -- sandbox/movie.mp4
 //!
 //! What to verify:
 //! - The picture is the movie, and it plays once through and stops at the last frame.
@@ -9,9 +11,15 @@
 //!   column on the left, so a wrong frame is easy to see.
 
 use bevy::prelude::*;
+#[cfg(feature = "mp4")]
+use bevy_movie_play_experimental::Mp4Source;
 use bevy_movie_play_experimental::{ImageSequence, Movie, MoviePlugin};
 use image::{Rgb, RgbImage};
-use std::{env, fs::create_dir_all, path::PathBuf};
+use std::{
+    env,
+    fs::create_dir_all,
+    path::{Path, PathBuf},
+};
 
 #[derive(Component)]
 struct Playing(bool);
@@ -31,8 +39,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         .map(PathBuf::from)
         .unwrap_or_else(make_test_movie);
     let frame_rate = args.next().and_then(|a| a.parse().ok()).unwrap_or(10.0);
-    let source = ImageSequence::open(&dir, frame_rate).expect("cannot open the folder");
-    let movie = Movie::new(source, &mut images);
+    let movie = open_movie(&dir, frame_rate, &mut images);
     commands.spawn(Camera2d);
     commands.spawn((
         Node {
@@ -53,6 +60,21 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             Playing(true),
         )],
     ));
+}
+
+/// The frame rate is that of the file for an MP4.
+fn open_movie(path: &Path, frame_rate: f32, images: &mut Assets<Image>) -> Movie {
+    #[cfg(feature = "mp4")]
+    if path
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("mp4"))
+    {
+        return Movie::new(Mp4Source::open(path).expect("cannot open the MP4"), images);
+    }
+    Movie::new(
+        ImageSequence::open(path, frame_rate).expect("cannot open the folder"),
+        images,
+    )
 }
 
 fn advance(time: Res<Time>, mut movies: Query<(&mut Movie, &Playing)>) {
